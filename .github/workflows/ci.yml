@@ -3,7 +3,9 @@ name: My First CI
 on:
   push:
     branches: [ "main" ]
-
+    paths:
+      - "**.md"
+      - ".github/workflows/**"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,4 +14,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Say hello
-        run: echo "Hello from GitHub Actions and Maksim  at $(date)"
+        run: echo "Hello from GitHub Actions at $(date)"
