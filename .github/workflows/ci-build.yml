@@ -17,25 +17,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Быстрый кэш для Node: либо включенный в setup-node,
-      # либо actions/cache (чуть ниже — альтернативный вариант).
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: npm
 
-      - name: Install deps
-        run: npm ci
-
-      - name: Build
+      - name: Install deps (ok if none)
         run: |
-          echo "APP_ENV=$APP_ENV"
-          npm run build
-          # для демонстрации создадим файл-лог
+          if [ -f package.json ]; then
+            npm ci
+          else
+            echo 'no package.json -> skip install'
+          fi
+
+      - name: Build (demo)
+        run: |
+          mkdir -p "$BUILD_DIR"
+          echo "Hello from CI at $(date)" > "$BUILD_DIR/index.txt"
+          echo "APP_ENV=$APP_ENV" >> "$BUILD_DIR/index.txt"
           echo "Build time: $(date)" > build.log
 
-      # Загружаем артефакты (сборка + логи)
+      # Проверим, что секрет доступен (без раскрытия значения)
+      - name: Check secret length (masked)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN length: ${#NODE_AUTH_TOKEN}"
+          else
+            echo "NPM_TOKEN is not set (ok for demo)"
+          fi
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -43,13 +56,3 @@ jobs:
           path: |
             ${{ env.BUILD_DIR }}/
             build.log
-
-      # Пример использования секретов (создай NPM_TOKEN в Settings → Secrets and variables → Actions)
-      - name: Publish to npm (dry-run)
-        if: github.event_name == 'push'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          npm whoami || echo "No auth (ok for demo)"
-          # демонстрация: не публикуем по-настоящему
-          npm publish --dry-run || true
