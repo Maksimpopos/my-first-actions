@@ -1,58 +1,34 @@
-name: CI Build (cache + artifacts + secrets)
+name: CI Build (artifacts + secrets MIN)
 
 on:
   push:
     branches: [ main ]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      APP_ENV: ci
-      BUILD_DIR: dist
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: npm
-
-      - name: Install deps (ok if none)
+      - name: Make demo files
         run: |
-          if [ -f package.json ]; then
-            npm ci
-          else
-            echo 'no package.json -> skip install'
-          fi
+          mkdir -p dist
+          echo "Hello from CI $(date)" > dist/index.txt
+          echo "Build log at $(date)" > build.log
 
-      - name: Build (demo)
-        run: |
-          mkdir -p "$BUILD_DIR"
-          echo "Hello from CI at $(date)" > "$BUILD_DIR/index.txt"
-          echo "APP_ENV=$APP_ENV" >> "$BUILD_DIR/index.txt"
-          echo "Build time: $(date)" > build.log
-
-      # Проверим, что секрет доступен (без раскрытия значения)
-      - name: Check secret length (masked)
+      - name: Check secret present (no leak)
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DUMMY: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -n "${NODE_AUTH_TOKEN}" ]; then
-            echo "NPM_TOKEN length: ${#NODE_AUTH_TOKEN}"
-          else
-            echo "NPM_TOKEN is not set (ok for demo)"
-          fi
+          if [ -n "$DUMMY" ]; then echo "Secret set (length: ${#DUMMY})"; else echo "No secret set (ok for demo)"; fi
 
-      - name: Upload build artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-build
           path: |
-            ${{ env.BUILD_DIR }}/
+            dist/
             build.log
